@@ -12,7 +12,6 @@
 .allfacebook.com
 .alliance.org.hk
 .allmovie.com
-.allproxysites.com
 .alwaysdata.com
 .am730.com.hk
 .amazon-adsystem.com
@@ -61,7 +60,6 @@
 .bdsmvideos.net
 .beaconevents.com
 .behindkink.com
-.berm.co.nz
 .bestfwdservice.com
 .bestofyoutube.com
 .bestyoutubeproxy.info
@@ -77,7 +75,6 @@
 .bizhat.com
 .bjnewlife.org
 .blinkx.com
-.blockedsiteaccess.com
 .blog.sina.com.tw
 .blogblog.com
 .blogcatalog.com
@@ -360,7 +357,6 @@
 .fpmt.org
 .free-web-proxy.de
 .freedl.org
-.freedom-ip.com
 .freedomhouse.org
 .freelancer.com
 .freenetproject.org
@@ -554,7 +550,6 @@
 .instagram.com
 .institut-tibetain.org
 .intertwitter.com
-.iphider.org
 .ipjetable.net
 .ipredator.se
 .iptv.com.tw
@@ -698,8 +693,6 @@
 .msn.com.tw
 .muchosucko.com
 .mullvad.net
-.multiproxy.org
-.multiupload.com
 .mummysgold.com
 .mundofacebook.com
 .musicade.net
@@ -712,8 +705,6 @@
 .myeasytv.com
 .myfreepaysite.com
 .myfreshnet.com
-.myip-proxy.info
-.myiphide.com
 .mysinablog.com
 .mysocialpoint.com
 .nakido.com
@@ -881,12 +872,7 @@
 .proxybrowsing.com
 .proxybutton.com
 .proxyfoxy.com
-.proxyhub.ru
-.proxymenow.com
-.proxymesh.com
 .proxymice.com
-.proxyspain.com
-.proxyweb.com.es
 .proxywebsite.us
 .pscp.tv
 .ptt.cc
@@ -895,7 +881,6 @@
 .purchasefollowersontwitter.com
 .pureinsight.org
 .purevpn.com
-.pussy.org
 .puuko.com
 .python.com
 .qi-gong.me
@@ -1005,8 +990,6 @@
 .sopcast.org
 .soubory.com
 .soundcloud.com
-.soundofhope.kr
-.soundofhope.org
 .sourceforge.net
 .southnews.com.tw
 .spankwire.com
@@ -1085,13 +1068,6 @@
 .tiananmenmother.org
 .tiandixing.org
 .tiantibooks.org
-.tibet.com
-.tibet.net
-.tibet.org.tw
-.tibetanyouthcongress.org
-.tibetfund.org
-.tibethouse.jp
-.tibetonline.tv
 .timdir.com
 .time.com
 .timsah.com
@@ -1461,3 +1437,17 @@
 .packagecontrol.io
 .apache.org
 .nslu2-linux.org
+.viki.com
+.maplestage.com
+.whatsapp.com
+.quora.com
+.hp.com
+.hpsmart.com
+.xvideos-cdn.com
+.superuser.com
+.9to5mac.com
+.washingtonpost.com
+.sadlerswells.com
+.zoom.us
+.hbo.com
+.hbomax.com
