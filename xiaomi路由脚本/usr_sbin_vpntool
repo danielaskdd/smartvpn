@@ -1,0 +1,536 @@
+#!/usr/bin/env lua
+local posix = require "Posix"
+local json = require "json"
+local net_tools = require "net_tools"
+local ubus = require "ubus"
+local iproute = require "iproute"
+local conn
+local cursor
+local cfg = {
+        ['stat_file'] = "/tmp/vpn.stat.msg",
+        ['stat_file_last'] = "/tmp/vpn.stat.msg.last",
+        ['time_step'] = 1,
+        ['debug'] = 0,
+        ['daemon'] = 1,
+        ['max_redail'] = 2,
+        ['page_limit'] = 1000 - 1,
+    }
+local g = {}
+
+function exit(ret)
+	os.exit(ret > 255 and 255 or ret)
+end
+
+function print_json(out)
+    print(json.encode(out))
+end
+
+function dlog(fmt, ...)
+    if (cfg.debug == 1) then
+        posix.syslog(posix.LOG_DEBUG, string.format(fmt, unpack(arg)))
+    elseif (cfg.debug == 2) then
+        print(string.format(fmt, unpack(arg)))
+    end
+end
+
+function ilog(fmt, ...)
+    if (cfg.debug == 2) then
+        print(string.format(fmt, unpack(arg)))
+    else
+        posix.syslog(posix.LOG_INFO, string.format(fmt, unpack(arg)))
+    end
+end
+
+function elog(fmt, ...)
+    if (cfg.debug == 2) then
+        print(string.format(fmt, unpack(arg)))
+    else
+        posix.syslog(posix.LOG_ERR, string.format(fmt, unpack(arg)))
+    end
+end
+
+function check_ppp(interface)
+    g.status = conn:call("network.interface", "status", {['interface']=interface})
+    if not g.status.autostart then
+        ilog("autostart=false exit")
+        exit(1)
+    end
+    if g.action == "up" and g.status.up then
+        ilog("action=up up=true exit")
+        exit(1)
+    end
+end
+
+function get_last_msg()
+    local code = 0
+    local msg = ''
+    local f = io.open(cfg.stat_file_last)
+    if f == nil then
+        return nil
+    end
+    local line = f:read("*line")
+    while line do
+        _, _, code, msg = string.find(line, "^(%d+) (.*)$")
+        line = f:read("*line")
+    end
+    f:close()
+    if code then
+        dlog("get_last_msg code[%d] msg[%s]", tonumber(code), msg)
+        return {code = tonumber(code) or nil, msg = msg}
+    else
+        return nil
+    end
+end
+
+function init(interface)
+
+    if (g.action == "up"  or g.action == "down") and cfg.daemon == 1 then
+        posix.daemonize()
+    end
+
+    posix.openlog(g.proc, "cp", posix.LOG_LOCAL7)
+    conn = ubus.connect()
+    cursor = require("luci.model.uci").cursor()
+    g.status = conn:call("network.interface", "status", {['interface'] = interface})
+
+    if g.status == nil then
+        conn:call("network", "reload", {})
+        dlog("ubus call network reload")
+        posix.sleep(1)
+        g.status = conn:call("network.interface", "status", {['interface'] = interface})
+    end
+
+    if g.status == nil then
+        elog("network.interface.%s does not exist", interface)
+        exit(1)
+    end
+
+    g.status.proto = cursor:get("network", interface ,"proto")
+    if g.status.proto ~= "l2tp" then
+        elog(string.format("error %s proto [%s], l2tp", interface, g.status.proto))
+        exit(1)
+    end
+    g.status.auth = cursor:get("network",interface,"auth")
+    g.status.auto = cursor:get("network",interface,"auto")
+    g.status.server = cursor:get("network",interface,"server")
+    g.l2tp_redail = 0
+    g.max_redail = cfg.max_redail
+end
+
+
+function check_redial(interface)
+    while posix.stat(cfg.stat_file) == nil do
+        check_ppp(interface)
+        dlog("wait %s", cfg.stat_file)
+        posix.sleep(cfg.time_step)
+    end
+    dlog("rename %s -> %s", cfg.stat_file, cfg.stat_file_last)
+    os.rename(cfg.stat_file, cfg.stat_file_last)
+    local m = get_last_msg()
+    if m ~= nil and m.code == 0 then
+        ilog("succeeded")
+        return false
+    end
+
+    check_ppp(interface)
+    if g.status.proto == "l2tp" then
+        g.l2tp_redail = g.l2tp_redail + 1
+        if g.l2tp_redail <= g.max_redail  then
+            dlog("%s l2tp redial[%d]", interface, g.l2tp_redail)
+            return true
+        else
+            os.execute("ifdown " .. interface)
+            elog("%s l2tp max redial[%d] ifdown %s and exit", interface, g.l2tp_redail, interface)
+            return false
+        end
+    else
+        elog("error " .. interface .. " proto")
+        os.execute("ifdown " .. interface)
+        return false
+    end
+end
+
+
+function check_hostname()
+
+    if posix.gethostbyname(g.status.server) == nil then
+
+        local file,err = io.open( cfg.stat_file_last, "wb" )
+        if err then
+            elog(string.format("open %s error"), cfg.stat_file_last)
+            return -1
+        end
+        elog(string.format("701 Host %s not found\n", g.status.server))
+        file:write(string.format("701 Host %s not found\n", g.status.server))
+        file:close()
+        return -1
+    end
+    return 0
+end
+
+
+function pexec(cmd)
+    local pp = io.popen(cmd)
+    local data = pp:read("*all")
+    pp:close()
+    return data
+end
+
+function isStrNil(str)
+    return (str == nil or str == "")
+end
+
+function get_rt_tables()
+    local rt_tables = {}
+    for line in io.lines("/etc/iproute2/rt_tables") do
+        _, _, index, rt_table_name = string.find(line, '%s*(%S+)%s+(%S+)%s*')
+        index = tonumber(index)
+        if (index ~= nil) then
+            rt_tables[index] = rt_table_name
+        end
+    end
+    return rt_tables
+end
+
+function add_rt_tables(index, rt_table_name)
+    os.execute(string.format("echo '%s %s' >> /etc/iproute2/rt_tables", index, rt_table_name))
+end
+---------------------------------------------------------------------
+
+local status, err = pcall(
+    function ()
+
+        g.proc = arg[0]
+        g.action = arg[1]
+
+        if g.action == "up" then
+            interface = arg[2]
+            if isStrNil(interface) then
+                elog("interface is nil")
+                exit(1)
+            end
+            init(interface)
+
+            if g.status.autostart then
+                elog("already start, %s down first", g.proc)
+                exit(1)
+            end
+
+            if check_hostname() ~= 0 then
+                exit(1)
+            end
+
+            dlog("rm %s", cfg.stat_file)
+            os.remove(cfg.stat_file)
+            dlog("ifup " .. interface)
+            os.execute("ifup " .. interface)
+            while check_redial(interface) do
+            end
+            exit(0)
+
+        elseif g.action == "down" then
+            interface = arg[2]
+            if isStrNil(interface) then
+                elog("interface is nil")
+                exit(1)
+            end
+            init(interface)
+            os.execute("ifdown " .. interface)
+            exit(0)
+
+        elseif g.action == "status" then
+            local interface = arg[2]
+            if isStrNil(interface) then
+                elog("interface is nil")
+                exit(1)
+            end
+            init(interface)
+            local s = conn:call("network.interface", "status", {['interface'] = interface})
+            s.stat = get_last_msg()
+            s.auto = cursor:get("network", interface, "auto")
+            print_json(s)
+            exit(0)
+
+        elseif g.action == 'info' then
+            local interface = arg[2]
+            if isStrNil(interface) then
+                elog("interface is nil")
+                exit(1)
+            end
+            local XQVPNUtil = require("xiaoqiang.util.XQVPNUtil")
+            local result = XQVPNUtil.getVPNInfo(interface)
+            print_json(result)
+            exit(0)
+
+        elseif g.action == 'set' then
+            local interface = arg[2]
+            if (interface == 'vpn') then
+                elog("interface vpn can't be set")
+                exit(1)
+            end
+            local XQVPNUtil = require("xiaoqiang.util.XQVPNUtil")
+            local set = XQVPNUtil.setVpn(interface, arg[3], arg[4],  arg[5], arg[6], "", 0)
+            if set then
+                local fs = require "nixio.fs"
+                if(not fs.access(string.format("/etc/ppp/ppp.d/%s-up", interface))) then
+                    os.execute(string.format("ln -s /etc/ppp/ppp.d/none  /etc/ppp/ppp.d/%s-up", interface))
+                end
+                exit(0)
+            else
+                exit(1)
+            end
+
+        elseif g.action == 'flushdst' then
+            rt_table_name = arg[2]
+            if isStrNil(rt_table_name) then
+                elog("rt_table_name is nil")
+                exit(1)
+            end
+            local ret = os.execute("ip route flush table " .. rt_table_name )
+            exit(ret)
+
+        elseif g.action == 'listsrc' then
+            --ip rule list
+            rt_table_name = arg[2]
+            if isStrNil(rt_table_name) then
+                elog("rt_table_name is nil")
+                exit(1)
+            end
+            local pp = io.popen("ip rule list")
+            local line = pp:read("*line")
+            while line do
+                _, _, scope = string.find(line,'%S+:%s+from%s+(%S+)%s+lookup '.. rt_table_name ..'%s*')
+                if (scope ~= nil) then
+                    print(scope)
+                end
+                line = pp:read("*line")
+            end
+            pp:close()
+            exit(0)
+
+        elseif g.action == 'listdst' then
+            --ip rule list
+            local rt_table_name = arg[2]
+            local page_begin = tonumber(arg[3])
+            local page_end = tonumber(arg[4])
+            local page_begin = page_begin and page_begin or 0
+            local page_end = page_end and page_end or  page_begin + cfg.page_limit
+            dlog("begin %f end %f", page_begin, page_end)
+            if page_end >= page_begin then
+                page_end = (page_end - page_begin > cfg.page_limit) and (page_begin + cfg.page_limit) or page_end
+            else
+                elog("end < begin")
+                exit(1)
+            end
+
+            if page_begin < 0 then
+                elog("begin < 0")
+                exit(1)
+            end
+
+            if isStrNil(rt_table_name) then
+                elog("rt_table_name is nil")
+                exit(1)
+            end
+
+            local i = 0
+            local pp = io.popen("ip route list table " .. rt_table_name)
+            local line = pp:read("*line")
+
+            while line do
+                if i >= page_begin then
+                    print(line)
+                end
+                if i >= page_end then
+                    pp:close()
+                    exit(0)
+                end
+                i = i + 1
+                line = pp:read("*line")
+            end
+            pp:close()
+            exit(0)
+
+        elseif g.action == 'addsrc' then
+            --ip rule  add from 192.168.31.228 table xlacc
+            local ret = {['success'] = 0, ['fail'] = 0}
+            local n = 0
+            local rt_table_name = arg[2]
+            if isStrNil(rt_table_name) then
+                elog("rt_table_name is nil")
+                exit(1)
+            end
+            for i, v in ipairs(arg) do
+                if i > 2 then
+                    if os.execute(string.format("ip rule add from %s pref 1000 table " .. rt_table_name, v)) == 0 then
+                        ret.success = ret.success + 1
+                    else
+                        ret.fail = ret.fail + 1
+                    end
+                end
+            end
+            print_json(ret)
+            exit(ret.fail)
+
+        elseif g.action == 'delsrc' then
+            --ip rule del from 192.168.31.228 table xlacc
+            local ret = {['success'] = 0, ['fail'] = 0}
+            local n = 0
+            local rt_table_name = arg[2]
+            if isStrNil(rt_table_name) then
+                elog("rt_table_name is nil")
+                exit(1)
+            end
+            for i, v in ipairs(arg) do
+                if i > 2 then
+                    if os.execute(string.format("ip rule del from %s pref 1000 table " .. rt_table_name, v)) == 0 then
+                        ret.success = ret.success + 1
+                    else
+                        ret.fail = ret.fail + 1
+                    end
+                end
+            end
+            print_json(ret)
+            exit(ret.fail)
+
+        elseif g.action == 'change_src' then
+            local rt_table_name = arg[2]
+            if isStrNil(rt_table_name) then
+                elog("rt_table_name is nil")
+                exit(1)
+            end
+            if arg[3] and arg[4] then
+                os.execute(string.format("ip rule del from %s pref 1000 table " .. rt_table_name, arg[3]))
+                local ret = os.execute(string.format("ip rule add from %s pref 1000 table " .. rt_table_name, arg[4]))
+                exit(ret)
+            end
+            exit(1)
+
+        elseif g.action == 'adddst' then
+            local n = 0
+            --ip route add to 220.181.111.0/25 dev l2tp-xlacc table xlacc
+            local ret = {['success'] = 0, ['fail'] = 0}
+            local rt_table_name = arg[2]
+            local dev_name = arg[3]
+            if isStrNil(rt_table_name) or isStrNil(dev_name) then
+                elog("rt_table_name or dev_name is nil")
+                exit(1)
+            end
+            local s, err = pcall( function () iproute.init(rt_table_name, dev_name) end )
+            if not s then
+                elog(err)
+                exit(1)
+            end
+            for i, subnet in ipairs(arg) do
+                if i > 3 then
+                    if iproute.add(subnet) == 0 then
+                        ret.success = ret.success + 1
+                    else
+                        ret.fail = ret.fail + 1
+                    end
+                end
+            end
+            iproute.exit()
+            print_json(ret)
+            exit(ret.fail)
+
+        elseif g.action == 'deldst' then
+            --ip route del to 220.181.111.0/25 dev l2tp-xlacc table xlacc
+            local ret = {['success'] = 0, ['fail'] = 0}
+            local rt_table_name = arg[2]
+            local dev_name = arg[3]
+            if isStrNil(rt_table_name) or isStrNil(dev_name) then
+                elog("rt_table_name or dev_name is nil")
+                exit(1)
+            end
+            for i, v in ipairs(arg) do
+                if i > 3 then
+                    if os.execute(string.format("ip route del to %s dev %s table %s", v, dev_name, rt_table_name)) == 0 then
+                        ret.success = ret.success + 1
+                    else
+                        ret.fail = ret.fail + 1
+                    end
+                end
+            end
+            print_json(ret)
+            exit(ret.fail)
+
+        elseif g.action == 'rt_table_check' then
+            local rt_table_name = arg[2]
+            if isStrNil(rt_table_name)  then
+                elog("rt_table_name is nil")
+                print(-1)
+                exit(1)
+            end
+            local rt_tables = get_rt_tables()
+
+            for i , v in ipairs(rt_tables) do
+                if rt_table_name == v then
+                    print(i)
+                    exit(0)
+                end
+            end
+            elog("rt_table_check: %s: No such rt_table_name", rt_table_name)
+            print(-1)
+            exit(1)
+
+        elseif g.action == 'rt_table_register' then
+            local rt_table_name = arg[2]
+            local i
+            if isStrNil(rt_table_name)  then
+                elog("rt_table_name is nil")
+                print(-1)
+                exit(1)
+            end
+            local rt_tables = get_rt_tables()
+
+            for i , v in ipairs(rt_tables) do
+                if rt_table_name == v then
+                    elog("can't register %s: item exists", rt_table_name)
+                    print(-2)
+                    exit(1)
+                end
+            end
+
+            i = 1
+            while i < 253 do
+                dlog("%d, %s", i, rt_tables[i] and rt_tables[i] or 'nil')
+                if isStrNil(rt_tables[i]) then
+                    add_rt_tables(i, rt_table_name)
+                    print(i)
+                    exit(0)
+                end
+                i = i + 1
+            end
+            elog("rt_table_register: %s: No enough item on rt_tables", rt_table_name)
+            print(-1)
+            exit(1)
+
+        else
+            --[[
+            usage:  vpntool {up | down | status | info} interface
+                    vpntool {flushdst | listsrc} rt_table_name
+                    vpntool listdst rt_table_name [begin] [end]
+                    vpntool set 'interface' 'server' 'username' 'password' 'proto'
+                    vpntool {adddst | deldst} rt_table_name dev_name SCOPE
+                    vpntool {addsrc | delsrc} rt_table_name SCOPE
+                    vpntool change_src rt_table_name { ip | network/netmask } { ip | network/netmask }
+                    vpntool {rt_table_check | rt_table_register} rt_table_name
+            SCOPE := { ip | network/netmask } SCOPE
+            ]]
+            print(string.format("usage: %s {up | down | status | flushdst | listsrc | info} ", arg[0]))
+            print(string.format("       %s {flushdst | listsrc} rt_table_name ", arg[0]))
+            print(string.format("       %s vpntool listdst rt_table_name [begin] [end]", arg[0]))
+            print(string.format("       %s set 'interface' 'server' 'username' 'password' 'proto'", arg[0]))
+            print(string.format("       %s {adddst | deldst} rt_table_name dev_name SCOPE", arg[0]))
+            print(string.format("       %s {addsrc | delsrc} rt_table_name SCOPE", arg[0]))
+            print(string.format("       %s change_src rt_table_name {ip | network/netmask} {ip | network/netmask}", arg[0]))
+            print(string.format("       %s {rt_table_check | rt_table_register} rt_table_name", arg[0]))
+            print("SCOPE := { ip | network/netmask } SCOPE")
+            exit(1)
+        end
+    end
+)
+if not status then
+    elog(err)
+end
