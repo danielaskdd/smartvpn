@@ -34,7 +34,7 @@
 #model=`nvram get model`
 #if [ -z "$model" ]; then
 #    model=`cat /proc/xiaoqiang/model`
-#firesolvfile
+#fi
 #if [ "$model" != "R1D" ]; then
 #    return 1
 #fi
@@ -103,7 +103,8 @@ dnsmasq_restart()
 
         # remove DNS entry pushed by Softether
         sed -i -e '/nameserver 8.8.8.8/d' /tmp/resolv.conf.auto
-
+        sed -i -e '/nameserver 1.1.1.1/d' /tmp/resolv.conf.auto
+        
         /etc/init.d/dnsmasq restart
         sleep 1
 
