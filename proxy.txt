@@ -1457,3 +1457,4 @@
 .jitpack.io
 .jfrog.org
 .packagecontrol.io
+.linode.com
