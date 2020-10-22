@@ -63,6 +63,16 @@ do
     echo "ipset=/$line/$ipset_name"
 done > $domain_file
 
+# replace some domain's DNS to 1.1.1.1 (DNS routed to HK, for getting HK ip)
+sed -i \
+  -e '/server=\/google.com\// s/8.8.8.8/1.1.1.1/' \
+  -e '/server=\/googlevideo.com\// s/8.8.8.8/1.1.1.1/' \
+  -e '/server=\/youtube.com\// s/8.8.8.8/1.1.1.1/' \
+  -e '/server=\/youtu.be\// s/8.8.8.8/1.1.1.1/' \
+  -e '/server=\/twimg.com\// s/8.8.8.8/1.1.1.1/' \
+  -e '/server=\/twitter.com\// s/8.8.8.8/1.1.1.1/' \
+  $domain_file
+              
 rm $domain_file_formated
 rm $domain_file_sorted
 echo "Gen smartdns conf done!"
