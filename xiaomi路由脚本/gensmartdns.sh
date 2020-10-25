@@ -71,6 +71,8 @@ sed -i \
   -e '/server=\/youtu.be\// s/8.8.8.8/1.1.1.1/' \
   -e '/server=\/twimg.com\// s/8.8.8.8/1.1.1.1/' \
   -e '/server=\/twitter.com\// s/8.8.8.8/1.1.1.1/' \
+  -e '/server=\/developer.apple.com\// s/8.8.8.8/1.1.1.1/' \
+  -e '/server=\/icloud.com\// s/8.8.8.8/1.1.1.1/' \
   $domain_file
               
 rm $domain_file_formated
