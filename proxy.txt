@@ -1460,3 +1460,10 @@
 .developer.apple.com
 .wapo.st
 .grammarly.com
+.nyti.ms
+.cnn.it
+.wiktionary.org
+.twitch.tv
+.v2ex.com
+.indiatimes.com
+.misstar.com
