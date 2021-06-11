@@ -104,7 +104,7 @@ dnsmasq_restart()
         # remove DNS entry pushed by Softether
         sed -i -e '/nameserver 8.8.8.8/d' /tmp/resolv.conf.auto
         sed -i -e '/nameserver 1.1.1.1/d' /tmp/resolv.conf.auto
-        
+
         /etc/init.d/dnsmasq restart
         sleep 1
 
@@ -463,6 +463,10 @@ smartvpn_open()
     smartvpn_vpn_mark_redirect_open
     smartvpn_firewall_reload_add
 
+    # 通过vpn访问路由器上的端口（通过vpn访问ssh端口）
+    ip route add 192.168.30.0/24 dev l2tp-vpn
+    ip route add 192.168.29.0/24 dev l2tp-vpn
+
     ip route flush table cache
 
     smartvpn_logger "status set on."
@@ -489,6 +493,10 @@ smartvpn_close()
     smartvpn_dns_stop
 
     smartvpn_ipset_delete
+
+    # 通过vpn访问路由器上的端口（通过vpn访问ssh端口）
+    ip route del 192.168.30.0/24 dev l2tp-vpn
+    ip route del 192.168.29.0/24 dev l2tp-vpn
 
     ip route flush table cache
 
