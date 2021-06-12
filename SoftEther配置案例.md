@@ -166,19 +166,11 @@ config rule
 	ip route add 192.168.29.0/24 dev l2tp-vpn
 * 在smartvpn_close()中的ip route flush table cache语句前添加一下命令：
 	ip route del 192.168.29.0/24 dev l2tp-vpn
-
-如果SoftEher安装在小米路由上，则需要通过一下方法直接让小米路由访问GZHUB：
-* 配置SoftEther添加本地网桥：GZHUB 桥接 gzhub (gzhub是一个新创建的tap设备）
-* 修改SoftEther的启动脚本/opt/etc/init.d/S50vpnserver， 启动后添加
-    sleep 5
-    ip addr add 192.168.29.3 dev tap_gzhub   # 小米路由通过VPN访问的ip
-    ip route add 192.168.29.0/24 dev tap_gzhub
-由于小米路由添加与SoftEther的VPN时需要使用192.168.29.3这个ip（不能使用路由器LAN口的ip）
 ```
 
 ##### 其它说明
 
-* SoftEther安装在路由器上时不被路由器本身直接访问到，需要把SoftEther的Hub桥接到路由器上的一个Tap网卡上。SoftEther启动后需要给Tap网卡添加ip，并设置路由。小米路由添加VPN拨号时使用Tap网卡的ip，而不是路由器LAN口上的ip。
+* SotheEther不能直接装在小米路由器上。原因是SoftEther启用L2TP服务后会导致小米路由的VPN拨号功能失效，因而无法启用小米路由上的智能路由功能。
 * 建议SoftEhter监听端口不要使用安装后的默认配置（避免被攻击或监管机构扫描）
 * 小米路R2D可以通过一下方式让/usr/sbin目录变为可以修改
 
