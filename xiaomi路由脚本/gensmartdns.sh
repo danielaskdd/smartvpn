@@ -21,7 +21,7 @@ usage()
     echo "-- domain_file : must specify, writable, domain list output"
     echo "-- ip_file : must specify, writable, ip list output"
     echo "-- ipset_name : must specify"
-    echo "-- dnsserver : optional, default is 173.255.244.5"
+    echo "-- dnsserver : optional, default is 8.8.8.8"
     echo ""
 }
 
@@ -39,9 +39,7 @@ echo "gen arg list: "$*"!!!!!!!!!"
 }
 
 [ -z $dnsserver ] && {
-#    dnsserver="173.255.244.5"
-#    dnsserver="183.60.83.19"
-     dnsserver="8.8.8.8"
+    dnsserver="8.8.8.8"
 }
 
 [ -z $ipset_name ] && {
@@ -63,18 +61,17 @@ do
     echo "ipset=/$line/$ipset_name"
 done > $domain_file
 
-# replace some domain's DNS to 1.1.1.1 (DNS routed to HK, for getting HK ip)
+#走香港出口的域名的DNS改为1.1.1.1
 sed -i \
-  -e '/server=\/google.com\// s/8.8.8.8/1.1.1.1/' \
-  -e '/server=\/googlevideo.com\// s/8.8.8.8/1.1.1.1/' \
-  -e '/server=\/youtube.com\// s/8.8.8.8/1.1.1.1/' \
-  -e '/server=\/youtu.be\// s/8.8.8.8/1.1.1.1/' \
-  -e '/server=\/twimg.com\// s/8.8.8.8/1.1.1.1/' \
-  -e '/server=\/twitter.com\// s/8.8.8.8/1.1.1.1/' \
-  -e '/server=\/developer.apple.com\// s/8.8.8.8/1.1.1.1/' \
-  -e '/server=\/icloud.com\// s/8.8.8.8/1.1.1.1/' \
-  $domain_file
-              
+      -e '/server=\/google.com\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/googlevideo.com\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/youtube.com\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/youtu.be\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/twimg.com\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/twitter.com\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/apple.com\// s/8.8.8.8/1.1.1.1/' \
+      $domain_file
+
 rm $domain_file_formated
 rm $domain_file_sorted
 echo "Gen smartdns conf done!"
