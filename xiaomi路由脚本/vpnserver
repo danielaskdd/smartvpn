@@ -1,0 +1,82 @@
+#!/bin/sh /etc/rc.common
+
+START=96
+STOP=96
+
+PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export GCONV_PATH=/opt/lib/gconv
+
+start() {
+		logger -s -p alert -t softether "Starting softether vpnserver service."
+		LANG=en_US.UTF-8 /opt/libexec/softethervpn/vpnserver start	
+		sleep 5
+
+		# 设置tap网卡ip地址
+		ip addr add 192.168.29.4 dev tap_gzhub
+	    ip rule add from all to 8.8.8.8 lookup vpn
+		ip rule add from all to 1.1.1.1 lookup vpn
+		# 标准路由（让局域网可以访问SoftEther虚拟HUB的ip）
+		ip route add 192.168.29.0/24 dev tap_gzhub
+		ip route add 192.168.30.0/24 via 192.168.29.1
+		# vpn路由
+	    ip route add default via 192.168.29.1 table vpn
+		ip route flush cache
+
+		softeher_vpn.sh on
+}
+
+stop() {
+		logger -s -p alert -t softether "Stopping softether vpnserver service."
+		
+		softeher_vpn.sh off
+
+	    ip rule del from all to 8.8.8.8 lookup vpn
+		ip rule del from all to 1.1.1.1 lookup vpn
+		ip route del 192.168.29.0/24 dev tap_gzhub
+		ip route del 192.168.30.0/24 via 192.168.29.1
+	    ip route del default via 192.168.29.1 table vpn
+		ip route flush cache
+
+		LANG=en_US.UTF-8 /opt/libexec/softethervpn/vpnserver stop	
+		
+}
+
+restart() {
+
+		logger -s -p alert -t softether "Starting softether vpnserver service."
+
+		softeher_vpn.sh off
+
+	    ip rule del from all to 8.8.8.8 lookup vpn
+		ip rule del from all to 1.1.1.1 lookup vpn
+		ip route del 192.168.29.0/24 dev tap_gzhub
+		ip route del 192.168.29.0/24 dev tap_gzhub
+		ip route del 192.168.30.0/24 via 192.168.29.1
+	    ip route del default via 192.168.29.1 table vpn
+		ip route flush cache
+
+		LANG=en_US.UTF-8 /opt/libexec/softethervpn/vpnserver stop
+		logger "Stopping softether vpnserver service."
+		sleep 5
+
+		LANG=en_US.UTF-8 /opt/libexec/softethervpn/vpnserver start
+		sleep 5
+
+		# 设置tap网卡ip地址
+		ip addr add 192.168.29.4 dev tap_gzhub
+	    ip rule add from all to 8.8.8.8 lookup vpn
+		ip rule add from all to 1.1.1.1 lookup vpn
+		# 标准路由（让局域网可以访问SoftEther虚拟HUB的ip）
+		ip route add 192.168.29.0/24 dev tap_gzhub
+		ip route add 192.168.30.0/24 via 192.168.29.1
+		# vpn路由
+	    ip route add default via 192.168.29.1 table vpn
+		ip route flush cache
+
+		softeher_vpn.sh on
+}
+
+reload() {
+        restart
+        return $?
+}

@@ -1,5 +1,0 @@
-# Interface vpn
-nameserver 8.8.8.8
-# Interface wan
-nameserver 202.96.128.86
-nameserver 202.96.134.33
