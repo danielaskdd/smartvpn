@@ -1,0 +1,21 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2018 dco.gitee.io
+
+START=10
+STOP=90
+
+start() {        
+        # commands to launch application
+	mount -o bind /userdisk/data/opt  /opt
+        mount -o bind /userdisk/data/opt/root /root
+        # 让 /usr 目录变成可以修改（原 /usr 目录内容已经复制到 /userdisk/usr 中）
+        mount -o bind /userdisk/usr /usr
+        /opt/etc/init.d/rc.unslung start # opt开机启动
+}                 
+
+stop() {          
+        # commands to kill application
+        /opt/etc/init.d/rc.unslung stop # opt关机停止
+        umount /opt
+        umount /usr
+}

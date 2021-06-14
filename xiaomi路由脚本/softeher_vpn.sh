@@ -293,20 +293,20 @@ smartvpn_open()
 {
     if [ $vpn_status == "up" ];
     then
-        smartvpn_logger "buildin vpn is up! can not enable smartvpn with softether."
+        smartvpn_logger "buildin l2tp vpn is up! can not enable smartvpn for softether."
         return 1
     fi
 
-    if [ $smartvpn_cfg_status == "on" ];
+    if [ $smartvpn_status == "on" ];
     then
         smartvpn_logger "already enabled."
         return 1
     fi
 
 
-    if [ $softether_status == "down" ];
+    if [ $softether_status == "stop" ];
     then
-        smartvpn_logger "softether is down!"
+        smartvpn_logger "softether not start! can not enable smartvpn for softether."
         return 1
     fi
 
@@ -328,14 +328,14 @@ smartvpn_open()
 
     ip route flush table cache
 
-    smartvpn_set_on
+    #smartvpn_set_on
     smartvpn_logger "smartvpn open!"
 
 }
 
 smartvpn_close()
 {
-    if [ $smartvpn_cfg_status == "off" ];
+    if [ $smartvpn_status == "off" ];
     then
         smartvpn_logger "status already off!"
         return 0
@@ -353,7 +353,7 @@ smartvpn_close()
     smartvpn_dns_stop           # 重启nsmasq       
     smartvpn_ipset_delete       # 删除ipset
 
-    smartvpn_set_off
+    #smartvpn_set_off
     smartvpn_logger "smartvpn close!"
 
     return
@@ -371,13 +371,24 @@ vpn_status_get()
     return
 }
 
-softether_status_get()
+smartvpn_status_get()
 {    
-    __tmp="$(ifconfig | grep $vpn_dev 2>/dev/null)"
+    __tmp="$(ip rule | grep "fwmark 0x10/0x10 lookup vpn" 2>/dev/null)"
     if  [ -n "$__tmp" ]; then
-        softether_status="up"
+        smartvpn_status="on"
     else
-        softether_status="down"
+        smartvpn_status="off"
+    fi
+    return
+}
+
+softether_status_get()
+{
+    __tmpPID=$(ps | grep "vpnserver" | grep -v "grep vpnserver" | awk '{print $1}' 2>/dev/null)
+    if  [ -n "$__tmpPID" ]; then
+        softether_status="start"
+    else
+        softether_status="stop"
     fi
     return
 }
@@ -385,9 +396,10 @@ softether_status_get()
 smartvpn_usage()
 {
     echo "usage: ./softether_vpn.sh on|off"
-    echo "note:  smartvpn only used when softether is UP!"
+    echo ""
     echo "softether status = $softether_status"
-    echo "smartvpn status = $smartvpn_cfg_status"
+    echo "smartvpn status = $smartvpn_status"
+    echo "smartvpn cfg switch = $smartvpn_cfg_switch"
     echo "buildin vpn status = $vpn_status"
     echo ""
 }
@@ -395,10 +407,11 @@ smartvpn_usage()
 #
 
 vpn_status_get
+smartvpn_status_get
 softether_status_get
 
 config_load "smartvpn"
-config_get smartvpn_cfg_status vpn status &>/dev/null;
+config_get smartvpn_cfg_switch vpn switch &>/dev/null;
 
 OPT=$1
 

@@ -170,17 +170,22 @@ config rule
 
 ##### 其它说明
 
-* 因SoftEther启用L2TP服务后会导致小米路由的VPN拨号功能失效，从而无法启用小米路由上的智能路由功能。如确是需要把SoftEther安装在小米路由上，需要废弃小米路由做好的智能路由功能，改为自己编写脚本实现。做法简单描述如下：
+* SoftEther启用L2TP服务后会导致小米路由的VPN拨号功能失效，如需要把SoftEther直接安装在小米路由上，需要废弃小米路原先做好的智能路由功能，改为自己编写脚本实现：
 
 ```
 1. 配置SoftEther，创建虚拟好GZHUB，级联到香港的HKHUB上
 2. 把GZHUB桥接到本地网络上（桥接p网卡为tap_gzhub)
 3. 把SoftEther开启脚本 vpnserver 拷贝到 /etc/init.d 目录下
-4. 把智能路由启动脚本softether_vpn.sh拷贝到/usr/sbib目录，重启路由器即可
+4. 把智能路由设置脚本softether_vpn.sh拷贝到/usr/sbib目录
+5. 把智能路由设置开关检测脚本check_smartvpn_switch.sh拷贝到/usr/sbib目录
+6. 配置调度任务crontab，定期Web UI的“智能VPN路由”开关
+   */1 * * * * /usr/sbin/check_smartvpn_switch.sh  >/dev/null 2>&1 &
+7. 重启路由器，路由器将使用SoftEther来实现智能路由
 
 说明：
 1. softether_vpn.sh可以收工开启和关闭智能路由
 2. vpnserver启动脚本有tap网卡的ip和路由设置，需要根据本地网络的ip进行修改方可使用
+3. 依然可以使用小米路由的Web UI编辑智能VPN分流的白名单（即proxy.txt文件)
 ```
 
 * 建议SoftEhter监听端口不要使用安装后的默认配置（避免被攻击或监管机构扫描）

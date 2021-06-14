@@ -67,7 +67,7 @@ hostlist_not_null=0
 smartvpn_logger()
 {
     echo "smartvpn: $1"
-    logger -t smartvpn "$1"
+    logger -p alert -t smartvpn "$1"
 }
 
 smartvpn_usage()
@@ -77,6 +77,17 @@ smartvpn_usage()
     echo "value: off -- disable smartvpn"
     echo "note:  smartvpn only used when vpn is UP!"
     echo ""
+}
+
+softether_status_get()
+{
+    __tmpPID=$(ps | grep "vpnserver" | grep -v "grep vpnserver" | awk '{print $1}' 2>/dev/null)
+    if  [ -n "$__tmpPID" ]; then
+        softether_status="start"
+    else
+        softether_status="stop"
+    fi
+    return
 }
 
 dnsmasq_restart()
@@ -356,6 +367,8 @@ smartvpn_config_get()
 
     config_get smartvpn_cfg_status vpn status &>/dev/null;
 
+    config_get smartvpn_cfg_switch vpn switch &>/dev/null;
+
     config_get smartvpn_cfg_type vpn type &>/dev/null;
 
     config_get smartvpn_cfg_domainfile vpn domain_file &>/dev/null;
@@ -509,6 +522,7 @@ smartvpn_close()
 }
 
 vpn_status_get
+softether_status_get
 
 smartvpn_config_get || return 1
 
@@ -530,6 +544,16 @@ case $OPT in
     ;;
 
     flush)
+        # if [ $softether_status == "start" ];
+        # then
+        #     # 根据智能VPN路由开关来控制SoftEther服务的起停
+        #     if [ $smartvpn_cfg_switch == "1" ];
+        #     then
+        #         /etc/init.d/vpnserver start
+        #     else
+        #         /etc/init.d/vpnserver stop
+        #     fi
+        # fi
         smartvpn_close
         smartvpn_cfg_status=off
         smartvpn_open
