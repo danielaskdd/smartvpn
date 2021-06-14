@@ -94,13 +94,13 @@
   64.233.188.0/24/192.168.30.2
   117.18.232.0/24/192.168.30.2
   192.229.237.0/24/192.168.30.2
-  101.32.10.0/24/192.168.30.2（香港腾讯云）
-  124.156.158.0/24/192.168.30.2（香港腾讯云）
+  101.32.0.0/16/192.168.30.2（香港腾讯云）
+  124.156.128.0/17/192.168.30.2（香港腾讯云）
 ```
 
 ##### 内地SoftEther配置（与小米路由在同一个局域网）
 
-* 虚拟Hub：HKHUB
+* 虚拟Hub：GZHUB
 
 ```
 关闭虚拟Hub的SecureNAT：
@@ -176,6 +176,8 @@ config rule
 1. 配置SoftEther，创建虚拟好GZHUB，级联到香港的HKHUB上
 2. 把GZHUB桥接到本地网络上（桥接p网卡为tap_gzhub)
 3. 把SoftEther开启脚本 vpnserver 拷贝到 /etc/init.d 目录下
+   （脚本中为tap网卡添加的ip和静态路由需要修改，需要根据GZHUB网段的ip地址来调整，
+    当有多个SoftEther需要级联到HKUB是不能相互冲突）
 4. 把智能路由设置脚本softether_vpn.sh拷贝到/usr/sbib目录
 5. 把智能路由设置开关检测脚本check_smartvpn_switch.sh拷贝到/usr/sbib目录
 6. 配置调度任务crontab，定期Web UI的“智能VPN路由”开关
@@ -183,9 +185,9 @@ config rule
 7. 重启路由器，路由器将使用SoftEther来实现智能路由
 
 说明：
-1. softether_vpn.sh可以收工开启和关闭智能路由
-2. vpnserver启动脚本有tap网卡的ip和路由设置，需要根据本地网络的ip进行修改方可使用
-3. 依然可以使用小米路由的Web UI编辑智能VPN分流的白名单（即proxy.txt文件)
+a. 依然可以使用小米路由的Web UI编辑智能VPN分流的白名单（即proxy.txt文件)
+b. 由于SoftEther是一个比较耗费性能的程序，海外网速大于50Mb时应用高性能设备作为智能路由网关
+c. SoftEther开启脚本中可以为固定走VPN的ip添加静态路由，但注意不要把目标SoftEther的ip加入
 ```
 
 * 建议SoftEhter监听端口不要使用安装后的默认配置（避免被攻击或监管机构扫描）
