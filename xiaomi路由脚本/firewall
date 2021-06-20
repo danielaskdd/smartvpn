@@ -27,27 +27,31 @@ config forwarding
 config rule
 	option name 'Allow-wan-IKE'
 	option src 'wan'
-	option proto 'all'
+    list proto 'tcp'
+	list proto 'udp'
 	option dest_port '500'
 	option target 'ACCEPT'
   
 config rule
 	option name 'Allow-wan-L2TP'
 	option src 'wan'
-	option proto 'all'
+    list proto 'tcp'
+	list proto 'udp'
 	option dest_port '1701'
 	option target 'ACCEPT'
   
 config rule
 	option name 'Allow-wan-IPSEC'
 	option src 'wan'
-	option proto 'all'
+    list proto 'tcp'
+	list proto 'udp'
 	option dest_port '4500'
 	option target 'ACCEPT'
 
 config rule
 	option name 'Allow-wan-softher'
 	option src 'wan'
-	option proto 'all'
+    list proto 'tcp'
+	list proto 'udp'
 	option dest_port '1198'
 	option target 'ACCEPT'

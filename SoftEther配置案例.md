@@ -10,7 +10,7 @@
 
 #### 网络结构说明
 
-![SottEtherDiagram](SoftEther配置案例.assets/SottEtherDiagram.png)
+![SottEtherDiagram](SoftEther配置案例.assets/SottEtherDiagram.jpg)
 
 * 在内地、香港和美国各部署一台SoftEther服务器，内地级联到香港，香港级联到美国
 * 香港SoftEther上设置两个虚拟Hub，中间加一个三层路由，在路由器上配置路由策略，让需要香港加速的IP从香港出口短路出去
@@ -295,28 +295,32 @@ SoftEther启用L2TP服务后会导致小米路由的VPN拨号功能失效，如�
     config rule
       option name 'Allow-wan-IKE'
       option src 'wan'
-      option proto 'all'
+      list proto 'tcp'
+      list proto 'udp'
       option dest_port '500'
       option target 'ACCEPT'
       
 		config rule
       option name 'Allow-wan-L2TP'
       option src 'wan'
-      option proto 'all'
+      list proto 'tcp'
+		  list proto 'udp'
       option dest_port '1701'
       option target 'ACCEPT'
       
     config rule
       option name 'Allow-wan-IPSEC'
       option src 'wan'
-      option proto 'all'
+      list proto 'tcp'
+      list proto 'udp'
       option dest_port '4500'
       option target 'ACCEPT'
       
     config rule
       option name 'Allow-wan-softher'
       option src 'wan'
-      option proto 'all'
+      list proto 'tcp'
+      list proto 'udp'
       option dest_port '1198'
       option target 'ACCEPT'
 ```
