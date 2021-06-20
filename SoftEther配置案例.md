@@ -300,11 +300,11 @@ SoftEther启用L2TP服务后会导致小米路由的VPN拨号功能失效，如�
       option dest_port '500'
       option target 'ACCEPT'
       
-		config rule
+    config rule
       option name 'Allow-wan-L2TP'
       option src 'wan'
       list proto 'tcp'
-		  list proto 'udp'
+      list proto 'udp'
       option dest_port '1701'
       option target 'ACCEPT'
       
