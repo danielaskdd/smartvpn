@@ -1,0 +1,36 @@
+# 以下是需要调整的配置（并不是全部配置内容，不要直接替换掉路由器中的文件）
+
+config interface 'lan'
+	option ifname 'eth1 tap_myhub'
+	option type 'bridge'
+	option proto 'static'
+	option netmask '255.255.255.0'
+	option ip6assign '64'
+	option ipaddr '192.168.3.1'
+	list ip6class 'ifb'
+
+config interface 'sevpn'
+	option ifname 'tap_gzhub'
+	option proto 'static'
+	option ipaddr '192.168.29.4'
+	option netmask '255.255.255.0'
+
+config interface 'seman'
+	option ifname 'tap_manhub'
+	option proto 'static'
+	option ipaddr '192.168.28.4'
+	option netmask '255.255.255.0'
+
+config route 'route_VPN'
+	option interface 'sevpn'
+	option target '0.0.0.0/0'
+	option table 'vpn'
+	option gateway '192.168.29.1'
+
+config rule
+	option dest '1.1.1.1/32'
+	option lookup 'vpn'
+
+config rule
+	option dest '8.8.8.8/32'
+	option lookup 'vpn'

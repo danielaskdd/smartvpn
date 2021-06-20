@@ -48,8 +48,9 @@ then
         if [ $smartvpn_cfg_switch == "0" ];
         then
             echo "Stopping softether smartvpn ..." >> /tmp/check_smartvpn_switch.txt
-            touch /tmp/vpnserver_stopping
-            /etc/init.d/vpnserver stop
+            touch /tmp/vpnserver_smartvpn_stopping
+            # /etc/init.d/vpnserver stop
+            /usr/sbin/softeher_vpn.sh on
         fi
     fi
 else
@@ -65,8 +66,8 @@ else
             # start only when softether service has been started once
             if [ -f /tmp/vpnserver_start_once ]; then
                 echo "Starting softether smartvpn ..." >> /tmp/check_smartvpn_switch.txt
-                touch /tmp/vpnserver_starting
-                /etc/init.d/vpnserver start
+                touch /tmp/vpnserver_smartvpn_starting
+                /usr/sbin/softeher_vpn.sh off
             fi
         fi
     fi

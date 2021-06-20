@@ -1,0 +1,28 @@
+#!/bin/sh /etc/rc.common
+
+START=96
+STOP=96
+
+PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export GCONV_PATH=/opt/lib/gconv
+
+start() {
+	logger -s -p alert -t softether "Adding softether vpn settings..."
+	softeher_vpn.sh on
+	touch /tmp/vpnserver_start_once
+}
+
+stop() {
+	logger -s -p alert -t softether "Removing softether vpn settings.."
+	softeher_vpn.sh off
+}
+
+restart() {
+	start
+	stop
+}
+
+reload() {
+        restart
+        return $?
+}

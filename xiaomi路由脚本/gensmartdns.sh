@@ -70,6 +70,8 @@ sed -i \
       -e '/server=\/twimg.com\// s/8.8.8.8/1.1.1.1/' \
       -e '/server=\/twitter.com\// s/8.8.8.8/1.1.1.1/' \
       -e '/server=\/apple.com\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/github.com\// s/8.8.8.8/1.1.1.1/' \
+      -e '/server=\/gitlab.com\// s/8.8.8.8/1.1.1.1/' \
       $domain_file
 
 rm $domain_file_formated

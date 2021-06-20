@@ -79,6 +79,9 @@ smartvpn_ipset_create()
     if [ $? -ne 0 ]; then
         ipset create $ipset_name  hash:ip > /dev/null 2>&1
         ipset create $ipset_ip_name hash:net > /dev/null 2>&1
+    else
+        ipset flush $ipset_name
+        ipset flush $ipset_ip_name
     fi
 }
 
@@ -144,23 +147,33 @@ smartvpn_wandns2vpn_remove()
     done
 }
 
+smartvpn_firewall_reload_add()
+{
+uci -q batch <<-EOF >/dev/null
+    set firewall.smartvpn=include
+    set firewall.smartvpn.path="/usr/sbin/softether_vpn.sh reload"
+    set firewall.smartvpn.reload=1
+    commit firewall
+EOF
+    return 0
+}
+
+smartvpn_firewall_reload_delete()
+{
+uci -q batch <<-EOF >/dev/null
+    delete firewall.smartvpn
+    commit firewall
+EOF
+    return 0
+}
+
 smartvpn_device_table="smartvpn_device"
 smartvpn_mark_table="smartvpn_mark"
 smartvpn_vpn_mark_redirect_open()
 {
 
-    # 把vpn网卡加入wan区域（开通nat）
-    iptables -t nat -I delegate_postrouting -o $vpn_dev -j zone_wan_postrouting
-    iptables -t nat -I delegate_prerouting -i $vpn_dev -j zone_wan_prerouting
-
-    # iptables -t filter -I delegate_forward -i $vpn_dev -j zone_wan_forward
-    # iptables -t filter -I delegate_input -i $vpn_dev -j zone_wan_input
-    iptables -t filter -I delegate_output -o $vpn_dev -j zone_wan_output
-    iptables -t filter -I zone_wan_dest_ACCEPT -o $vpn_dev -j ACCEPT
-    iptables -t filter -A zone_wan_dest_REJECT -o $vpn_dev -j reject
-    iptables -t filter -A zone_wan_src_REJECT -i $vpn_dev -j reject
-
     # 有ipset标记的数据包走vpn路由（ip rule from all fwmark 0x10 lookup vpn）
+    ip rule del fwmark $ipset_mark table vpn > /dev/null 2>&1
     ip rule add fwmark $ipset_mark table vpn
 
     #allowmacs="$(uci get smartvpn.device.mac 2>/dev/null)"
@@ -238,17 +251,7 @@ smartvpn_vpn_mark_redirect_close()
 
     #iptables -t mangle -D $smartvpn_mark_table -m set --match-set $ipset_name  dst -j MARK --set-mark $ipset_mark
 
-    ip rule del fwmark $ipset_mark table vpn > /dev/null 2>&1
-
-    iptables -t nat -D delegate_postrouting -o $vpn_dev -j zone_wan_postrouting
-    iptables -t nat -D delegate_prerouting -i $vpn_dev -j zone_wan_prerouting
-
-    iptables -t filter -D zone_wan_src_REJECT -i $vpn_dev -j reject
-    iptables -t filter -D zone_wan_dest_REJECT -o $vpn_dev -j reject
-    iptables -t filter -D zone_wan_dest_ACCEPT -o $vpn_dev -j ACCEPT
-    iptables -t filter -D delegate_output -o $vpn_dev -j zone_wan_output
-    # iptables -t filter -D delegate_input -i $vpn_dev -j zone_wan_input
-    # iptables -t filter -D delegate_forward -i $vpn_dev -j zone_wan_forward
+    ip rule del fwmark $ipset_mark table vpn
 
     return
 }
@@ -289,6 +292,29 @@ smartvpn_vpn_route_add()
     return 0
 }
 
+smartvpn_enable()
+{
+    # 根据proxy.txt生成dnsmasq配置
+    gensmartdns.sh "$smartvpn_cfg_domainfile" "$smartdns_conf" "$rule_file_ip" "$ipset_name" > /dev/null 2>&1
+
+    smartvpn_ipset_create   # 创建ipset
+
+    [ -f $rule_file_ip ] && {
+        smartvpn_logger "add ips to ipset."
+        smartvpn_ipset_add_by_file $rule_file_ip
+        hostlist_not_null=1
+        rm $rule_file_ip
+    }
+
+    smartvpn_dns_start               # 重启nsmasq       
+    smartvpn_vpn_route_delete        # 删除lan到vpn路由
+    smartvpn_vpn_mark_redirect_open  # 添加智能路由标记防火墙规则
+
+    smartvpn_firewall_reload_add     # 防火墙规则重载时要重新设置smartvpn规则（重新拨号会导致防火墙重载）
+
+    ip route flush table cache
+}
+
 smartvpn_open()
 {
     if [ $vpn_status == "up" ];
@@ -310,25 +336,8 @@ smartvpn_open()
         return 1
     fi
 
-    # 根据proxy.txt生成dnsmasq配置
-    gensmartdns.sh "$smartvpn_cfg_domainfile" "$smartdns_conf" "$rule_file_ip" "$ipset_name" > /dev/null 2>&1
-
-    smartvpn_ipset_create   # 创建ipset
-
-    [ -f $rule_file_ip ] && {
-        smartvpn_logger "add ips to ipset."
-        smartvpn_ipset_add_by_file $rule_file_ip
-        hostlist_not_null=1
-        rm $rule_file_ip
-    }
-
-    smartvpn_dns_start               # 重启nsmasq       
-    smartvpn_vpn_route_delete        # 删除lan到vpn路由
-    smartvpn_vpn_mark_redirect_open  # 添加智能路由标记防火墙规则
-
-    ip route flush table cache
-
-    #smartvpn_set_on
+    smartvpn_enable
+    
     smartvpn_logger "smartvpn open!"
 
 }
@@ -349,11 +358,12 @@ smartvpn_close()
 
     smartvpn_vpn_mark_redirect_close    # 删除智能路由标记防火墙规则
     smartvpn_vpn_route_add              # 恢复lan到vpn路由
+    smartvpn_firewall_reload_delete     # 清除防火墙重载
         
     smartvpn_dns_stop           # 重启nsmasq       
     smartvpn_ipset_delete       # 删除ipset
 
-    #smartvpn_set_off
+
     smartvpn_logger "smartvpn close!"
 
     return
@@ -429,6 +439,12 @@ case $OPT in
 
     off)
         smartvpn_close
+        lock -u $smartvpn_lock
+        return $?
+    ;;
+
+    reload)
+        smartvpn_enable             # 重新加载白名单（防火墙重新启动时调用）
         lock -u $smartvpn_lock
         return $?
     ;;

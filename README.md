@@ -37,4 +37,4 @@ proxy.txt中的域名表示需要走VPN通道的网址，ip网段表示不理会
 
 小米路支持接入的VPN仅支持PPP和L2TP两种，且L2TP还不支持IPSec。直接用小米路由的VPN连接海外是存在问题的，容易导致海外的服务器被封。解决的方案就是使用SoftEther来连接内地和海外，把其中一个SoftEther部署在与小米路由所在的局域网中，另一个SoftEther在海外。小米路由金需要通过VPN连接位于局域网内的SoftEther服务器，确保VPN服务稳定可靠。
 
-SoftEther的功能非常强大，如果你具有比较丰富的网络路由知识，可以搭建一个香港和美国双出口的科学上网方案，让部分常用网站从香港出口访问，加快访问速度。具体配置方案参看“SoftEter配置案例.md”，相关脚本也分享在本项目中。
+SoftEther的功能非常强大，如果你具有比较丰富的网络路由知识，可以搭建一个香港和美国双出口的科学上网方案，让部分常用网站从香港出口访问，加快访问速度。具体配置方案参看[SoftEter配置案例.md](https://github.com/danielaskdd/smartvpn/blob/master/SoftEther%E9%85%8D%E7%BD%AE%E6%A1%88%E4%BE%8B.md)，相关脚本也分享在本项目中。

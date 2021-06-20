@@ -1,0 +1,53 @@
+# 以下是需要调整的配置（并不是全部配置内容，不要直接替换掉路由器中的文件）
+
+config zone
+	option name 'wan'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+	option mtu_fix '1'
+	option network 'wan vpn sevpn'
+
+config zone
+	option name 'manhub'
+	option network 'seman'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config forwarding
+	option src 'lan'
+	option dest 'manhub'
+
+config forwarding
+	option src 'manhub'
+	option dest 'lan'
+
+config rule
+	option name 'Allow-wan-IKE'
+	option src 'wan'
+	option proto 'all'
+	option dest_port '500'
+	option target 'ACCEPT'
+  
+config rule
+	option name 'Allow-wan-L2TP'
+	option src 'wan'
+	option proto 'all'
+	option dest_port '1701'
+	option target 'ACCEPT'
+  
+config rule
+	option name 'Allow-wan-IPSEC'
+	option src 'wan'
+	option proto 'all'
+	option dest_port '4500'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow-wan-softher'
+	option src 'wan'
+	option proto 'all'
+	option dest_port '1198'
+	option target 'ACCEPT'
