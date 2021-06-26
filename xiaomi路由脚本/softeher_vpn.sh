@@ -323,6 +323,14 @@ smartvpn_open()
         return 1
     fi
 
+
+    if [ $smartvpn_cfg_switch <> "1" ];
+    then
+        smartvpn_logger "smartvpn cfg switch is off."
+        return 1
+    fi
+
+
     if [ $smartvpn_status == "on" ];
     then
         smartvpn_logger "already enabled."
