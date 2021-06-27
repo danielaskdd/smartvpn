@@ -326,17 +326,17 @@ smartvpn_open()
     if [ $softether_status == "stop" ];
     then
         
-        smartvpn_logger "softether is stop."
+        smartvpn_logger "softether is stopped."
         return 1
     fi
 
-    if [ $smartvpn_cfg_switch != "1" ];
-    then
-        smartvpn_logger "smartvpn cfg switch is off."
-        if [ "$FORCE" != "force" ];then
-            return 1
-        fi
-    fi
+    # if [ "$smartvpn_cfg_switch" != "1" ];
+    # then
+    #     smartvpn_logger "smartvpn cfg switch is off."
+    #     if [ "$FORCE" != "force" ];then
+    #         return 1
+    #     fi
+    # fi
 
     if [ $smartvpn_status == "on" ];
     then

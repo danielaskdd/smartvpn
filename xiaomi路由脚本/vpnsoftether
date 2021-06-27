@@ -6,14 +6,25 @@ STOP=96
 PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export GCONV_PATH=/opt/lib/gconv
 
+. /lib/functions.sh
+config_load "smartvpn"
+config_get smartvpn_cfg_switch vpn switch &>/dev/null;
+config_get samrtvpn_dhcp_sideway dhcp sideway &>/dev/null;
+
 start() {
-	logger -s -p alert -t softether "Adding softether vpn settings..."
-	softeher_vpn.sh on
-	touch /tmp/vpnserver_start_once
+
+	if [ "$smartvpn_cfg_switch" == "1" ] && [ "$samrtvpn_dhcp_sideway" != "1" ];
+	then
+		logger -s -p alert -t softether_vpn "SoftEhter smartvpn starting..."
+		softeher_vpn.sh on
+		touch /tmp/vpnserver_start_once
+	else
+		logger -s -p alert -t softether_vpn "SoftEther smartvpn not started by settings"
+	fi
 }
 
 stop() {
-	logger -s -p alert -t softether "Removing softether vpn settings.."
+	logger -s -p alert -t softether_vpn "SoftEhter smartvpn stopping..."
 	softeher_vpn.sh off
 }
 
