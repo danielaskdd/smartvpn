@@ -28,47 +28,35 @@ softether_status_get()
 
 #
 
+config_load "smartvpn"
+config_get smartvpn_cfg_switch vpn switch &>/dev/null;
 smartvpn_status_get
 softether_status_get
 # vpn_status_get
 
 echo "vpn_status_get = $smartvpn_status" > /tmp/check_smartvpn_switch.txt
 echo "softether_status_get = $softether_status" >> /tmp/check_smartvpn_switch.txt
+echo "smartvpn_cfg_switch = $smartvpn_cfg_switch" >> /tmp/check_smartvpn_switch.txt
 
 if [ $smartvpn_status == "on" ];
 then
-    if [ $softether_status == "start" ];
+    # 根据智能VPN路由开关来控制SoftEther服务的起停
+    if [ $smartvpn_cfg_switch != "1" ];
     then
-
-        config_load "smartvpn"
-        config_get smartvpn_cfg_switch vpn switch &>/dev/null;
-        echo "smartvpn_cfg_switch = $smartvpn_cfg_switch" >> /tmp/check_smartvpn_switch.txt
-
-        # 根据智能VPN路由开关来控制SoftEther服务的起停
-        if [ $smartvpn_cfg_switch == "0" ];
-        then
-            echo "Stopping softether smartvpn ..." >> /tmp/check_smartvpn_switch.txt
-            touch /tmp/vpnserver_smartvpn_stopping
-            # /etc/init.d/vpnserver stop
-            /usr/sbin/softeher_vpn.sh on
-        fi
+        echo "Stopping softether smartvpn ..." >> /tmp/check_smartvpn_switch.txt
+        touch /tmp/vpnserver_smartvpn_stopping
+        # /etc/init.d/vpnserver stop
+        /usr/sbin/softeher_vpn.sh off
     fi
 else
-    if [ $softether_status == "stop" ];
+    # 根据智能VPN路由开关来控制SoftEther服务的起停
+    if [ $smartvpn_cfg_switch == "1" ];
     then
-        config_load "smartvpn"
-        config_get smartvpn_cfg_switch vpn switch &>/dev/null;
-        echo "smartvpn_cfg_switch = $smartvpn_cfg_switch" >> /tmp/check_smartvpn_switch.txt
-
-        # 根据智能VPN路由开关来控制SoftEther服务的起停
-        if [ $smartvpn_cfg_switch == "1" ];
-        then
-            # start only when softether service has been started once
-            if [ -f /tmp/vpnserver_start_once ]; then
-                echo "Starting softether smartvpn ..." >> /tmp/check_smartvpn_switch.txt
-                touch /tmp/vpnserver_smartvpn_starting
-                /usr/sbin/softeher_vpn.sh off
-            fi
+        # start only when softether service has been started once
+        if [ -f /tmp/vpnserver_start_once ]; then
+            echo "Starting softether smartvpn ..." >> /tmp/check_smartvpn_switch.txt
+            touch /tmp/vpnserver_smartvpn_starting
+            /usr/sbin/softeher_vpn.sh on
         fi
     fi
 fi

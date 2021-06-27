@@ -324,25 +324,24 @@ smartvpn_open()
     fi
 
 
-    if [ $smartvpn_cfg_switch <> "1" ];
+    if [ $smartvpn_cfg_switch != "1" ];
     then
         smartvpn_logger "smartvpn cfg switch is off."
         return 1
     fi
 
-
     if [ $smartvpn_status == "on" ];
     then
         smartvpn_logger "already enabled."
-        return 1
+        return 0
     fi
-
 
     if [ $softether_status == "stop" ];
     then
-        smartvpn_logger "softether not start! can not enable smartvpn for softether."
-        return 1
+        smartvpn_logger "softether is stop. restarting..."
+        /opt/etc/init.d/S05vpnserver start
     fi
+
 
     smartvpn_enable
     
