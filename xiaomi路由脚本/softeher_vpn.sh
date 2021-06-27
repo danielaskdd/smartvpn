@@ -3,7 +3,6 @@
 . /lib/functions.sh
 . /lib/functions/network.sh
 
-
 vpn_dev="tap_gzhub"
 
 ipset_name="smartvpn"
@@ -197,6 +196,8 @@ smartvpn_vpn_mark_redirect_open()
     #    done
     #fi
 
+
+    # 删掉按MAC地址分流的功能
     #allowmacs not NULL
     # if [ "$smartvpn_cfg_devicemac" != "" ]
     # then
@@ -232,21 +233,20 @@ smartvpn_vpn_mark_redirect_open()
         iptables -t mangle -A $smartvpn_mark_table -m set --match-set $ipset_ip_name  dst -j MARK --set-mark $ipset_mark
     fi
 
-    iptables -t mangle -A PREROUTING -j smartvpn_device
-    iptables -t mangle -A PREROUTING -j smartvpn_mark
+    iptables -t mangle -A PREROUTING -j $smartvpn_device_table
+    iptables -t mangle -A PREROUTING -j $smartvpn_mark_table
 
     return
 }
 
 smartvpn_vpn_mark_redirect_close()
 {
-    iptables -t mangle -D PREROUTING -j smartvpn_device
-    iptables -t mangle -D PREROUTING -j smartvpn_mark
-
     iptables -t mangle -F $smartvpn_device_table
+    iptables -t mangle -D PREROUTING -j $smartvpn_device_table
     iptables -t mangle -X $smartvpn_device_table
 
     iptables -t mangle -F $smartvpn_mark_table
+    iptables -t mangle -D PREROUTING -j $smartvpn_mark_table
     iptables -t mangle -X $smartvpn_mark_table
 
     #iptables -t mangle -D $smartvpn_mark_table -m set --match-set $ipset_name  dst -j MARK --set-mark $ipset_mark
@@ -323,25 +323,29 @@ smartvpn_open()
         return 1
     fi
 
+    if [ $softether_status == "stop" ];
+    then
+        
+        smartvpn_logger "softether is stop."
+        return 1
+    fi
 
     if [ $smartvpn_cfg_switch != "1" ];
     then
         smartvpn_logger "smartvpn cfg switch is off."
-        return 1
+        if [ "$FORCE" != "force" ];then
+            return 1
+        fi
     fi
 
     if [ $smartvpn_status == "on" ];
     then
-        smartvpn_logger "already enabled."
-        return 0
-    fi
+        smartvpn_logger "smartvpn already enabled."
 
-    if [ $softether_status == "stop" ];
-    then
-        smartvpn_logger "softether is stop. restarting..."
-        /opt/etc/init.d/S05vpnserver start
+        if [ "$FORCE" != "force" ];then
+            return 0
+        fi
     fi
-
 
     smartvpn_enable
     
@@ -353,8 +357,11 @@ smartvpn_close()
 {
     if [ $smartvpn_status == "off" ];
     then
-        smartvpn_logger "status already off!"
-        return 0
+        smartvpn_logger "smartvpn already off!"
+
+        if [ "$FORCE" != "force" ];then
+            return 0
+        fi
     fi
 
     if [ $vpn_status == "up" ];
@@ -412,16 +419,20 @@ softether_status_get()
 
 smartvpn_usage()
 {
-    echo "usage: ./softether_vpn.sh on|off"
-    echo ""
+    echo
+    echo "usage: ./softether_vpn.sh on|off [force]"
+    echo
     echo "softether status = $softether_status"
     echo "smartvpn status = $smartvpn_status"
-    echo "smartvpn cfg switch = $smartvpn_cfg_switch"
+    echo "smartvpn switch = $smartvpn_cfg_switch"
     echo "buildin vpn status = $vpn_status"
     echo ""
 }
 
-#
+# main
+
+OPT=$1
+FORCE=$2
 
 vpn_status_get
 smartvpn_status_get
@@ -430,13 +441,10 @@ softether_status_get
 config_load "smartvpn"
 config_get smartvpn_cfg_switch vpn switch &>/dev/null;
 
-OPT=$1
-
 smartvpn_lock="/var/run/softether_vpn.lock"
 trap "lock -u $smartvpn_lock; exit 1" SIGHUP SIGINT SIGTERM
 lock $smartvpn_lock
 
-#main
 case $OPT in
     on)
         smartvpn_open
