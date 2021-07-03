@@ -219,7 +219,7 @@ mount -o remount, ro /       # 恢复路由器文件只读
 ```
 拷贝/usr目录到可以读写的卷中
 	cp -R -p /usr /userdisk
-在 /etc/rc.local的开头中添加一下语句：（启动的时候把/usr目录覆盖为刚刚拷贝的）
+在opt的启动脚本中 /etc/init.d/dco.openwrt 中增加以下语句：
 	mount -o bind /userdisk/usr /usr
 ```
 
